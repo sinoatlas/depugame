@@ -1,0 +1,42 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head><meta charset="UTF-8"><meta name="viewport" content="width=device-width,initial-scale=1"><meta name="theme-color" content="#101e22"><title>六城奇牌 · 技能德扑</title><link rel="stylesheet" href="style.css"></head>
+<body>
+<div class="ambient" aria-hidden="true"></div>
+<header class="topbar">
+  <a class="brand" href="/" aria-label="六城奇牌首页"><span class="brand-mark">♠<i>✦</i></span><span>六城奇牌<small>CITY JOKER CLUB</small></span></a>
+  <nav><button class="nav-active" id="tableTab">好友牌桌</button><button id="rolesBtn">角色图鉴</button><button id="rulesBtn">玩法说明</button></nav>
+  <div class="top-right"><span class="status-dot"></span><span>联机牌桌</span><button class="icon-btn" id="soundBtn" aria-label="切换音效">♪</button></div>
+</header>
+<main>
+  <div class="page-heading"><div><p class="eyebrow">六座城，一桌好戏</p><h1>今晚，来点不一样的。</h1></div><div class="heading-actions"><span class="demo-tag">六人真人联机 · 可电脑补位</span><button class="quiet-btn" id="newGameBtn">↻ 重新开场</button></div></div>
+  <section class="room-panel" aria-label="联机房间"><label>昵称 <input id="nickname" maxlength="12" placeholder="输入你的昵称" value="牌友"></label><label>房间码 <input id="roomCode" maxlength="6" placeholder="六位房间码"></label><button id="createRoom" class="secondary-btn">创建房间</button><button id="joinRoom" class="secondary-btn">加入房间</button><button id="readyBtn" class="secondary-btn" hidden>准备</button><label id="botOption" hidden><input id="fillBots" type="checkbox">空位用电脑补齐</label><button id="copyInvite" class="quiet-btn" hidden>复制邀请链接</button><span id="connectionStatus">连接服务中…</span></section>
+  <div class="workspace">
+    <section class="arena" aria-label="德扑牌桌">
+      <div class="scene-header"><div><span class="scene-pin">⌖</span><span id="sceneName">南京 · 金陵夜宴</span><small id="sceneSubtitle">灯火入局，妙计先行</small></div><button class="scene-shuffle" id="sceneBtn" title="随机切换城市主题">⇄ 换座城市</button></div>
+      <div class="scene-word" id="sceneWord" aria-hidden="true">金陵</div>
+      <div class="city-motifs" aria-hidden="true"><span>✦</span><span>♣</span><span>✧</span></div>
+      <div class="table-wrap">
+        <div class="poker-table"><div class="table-inner"><div class="table-label">CITY JOKER CLUB <span>✦</span></div><div class="pot-label">底池 <strong id="potValue">0</strong><span class="chip-dot"></span></div><div id="board" class="board"></div><div class="stage-line"><span class="live-dot"></span><span id="stageText">等待开场 · 六位角色已入座</span></div></div></div>
+        <div id="seats" class="seats"></div>
+        <div id="lobbyOverlay" class="lobby-overlay"><span class="lobby-spark">✦</span><h2>一张好牌，一点奇招。</h2><p>随机角色 · 万能小丑 · 六人各自为战</p><button class="primary-btn" id="startBtn">入座，开一局 <span>↗</span></button><small>每场 10 局 · 房间邀请 · 游戏筹码</small></div>
+      </div>
+      <div class="arena-footer"><span id="handCounter">第 0 / 10 局</span><span id="blindLabel">小盲 / 大盲 · 10 / 20</span><span id="dealerLabel">庄家轮换</span><span class="timer" id="timerLabel">准备就绪</span></div>
+    </section>
+    <aside class="side-panel">
+      <div class="panel-top"><span class="eyebrow">YOUR CHARACTER</span><span class="tiny-tag">随机分配</span></div>
+      <div class="role-feature"><div id="roleEmblem" class="role-emblem">策</div><span class="role-city" id="roleCity">南京</span><h2 id="roleName">金陵谋士</h2><p id="roleFlavor">好牌未必天生，妙计可以改命。</p></div>
+      <div class="skill-box"><div><span class="skill-symbol">✧</span><strong id="skillName">易策</strong><span class="uses" id="skillUses">● ● ●</span></div><p id="skillDescription">弃掉一张手牌，重新摸一张。</p><button id="skillBtn" class="skill-btn" disabled>等待发牌</button><small id="skillHint">每场 3 次 · 仅在下注前使用</small></div>
+      <div id="intelBox" class="intel-box" hidden></div>
+      <div class="log-heading"><h3>牌桌动态</h3><span>LIVE</span></div><div id="logs" class="logs" aria-live="polite"><p class="log-empty">城市灯火亮起，等你入座。</p></div>
+      <div class="side-footer" id="sessionScore">本场净收益 +0 · 已补充 0 次</div>
+    </aside>
+  </div>
+  <section class="action-bar" aria-label="你的操作"><div class="my-hand"><span class="hand-label">你的手牌<small id="handRank">等待发牌</small></span><div id="handCards" class="hand-cards"></div></div><div class="action-area"><div class="action-meta"><span id="actionHint">坐下来，让这座城市发牌。</span><span id="callHint"></span></div><div id="actions" class="action-buttons"><button class="secondary-btn" disabled>弃牌</button><button class="secondary-btn" disabled>过牌 / 跟注</button><button class="primary-btn" disabled>加注</button></div></div></section>
+  <div class="city-strip"><span>今晚的牌桌，可以在这里发生</span><div id="cityButtons"></div><small>地域插画待接入 · 当前为主题配色预览</small></div>
+  <footer class="page-footer"><span>六城奇牌 / PLAYFUL POKER, LOCAL STORIES.</span><span>原型 v0.2 · WebSocket 联机 · 不涉及现金</span></footer>
+</main>
+<dialog id="modal"><button class="modal-close" id="closeModal" aria-label="关闭">×</button><div id="modalContent"></div></dialog>
+<div id="toast" role="status"></div>
+<script src="assets/backgrounds.js"></script><script src="engine.js"></script><script src="app.js"></script>
+</body></html>
