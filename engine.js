@@ -2,13 +2,13 @@
   const suits=['♠','♥','♣','♦'];
   const names=['高牌','一对','两对','三条','顺子','同花','葫芦','四条','同花顺'];
   const rules={skillSeconds:30,actionSeconds:30,initialChips:1000,refillChips:1000,hands:10};
-  function deck(){const d=[];for(let s=0;s<4;s++)for(let r=2;r<=14;r++)d.push({r,s,id:s*13+r-2});d.push({r:0,s:4,id:52});return d;}
+  function deck(){const d=[];for(let s=0;s<4;s++)for(let r=2;r<=14;r++)d.push({r,s,id:s*13+r-2});d.push({r:0,s:4,id:52},{r:0,s:4,id:53});return d;}
   function shuffle(d,rng=Math.random){d=d.slice();for(let i=d.length-1;i>0;i--){const j=Math.floor(rng()*(i+1));[d[i],d[j]]=[d[j],d[i]];}return d;}
   function compare(a,b){for(let i=0;i<Math.max(a.length,b.length);i++){const v=(a[i]||0)-(b[i]||0);if(v)return Math.sign(v);}return 0;}
-  function five(cards){
+  function five(cards,allowFlush=true){
     const rs=cards.map(c=>c.r).sort((a,b)=>b-a), counts=new Map();rs.forEach(r=>counts.set(r,(counts.get(r)||0)+1));
     const groups=[...counts].sort((a,b)=>b[1]-a[1]||b[0]-a[0]);
-    const flush=cards.every(c=>c.s===cards[0].s), unique=[...new Set(rs)];let straight=0;
+    const flush=allowFlush&&cards.every(c=>c.s===cards[0].s), unique=[...new Set(rs)];let straight=0;
     if(unique.length===5){if(unique[0]-unique[4]===4)straight=unique[0];else if(unique.join(',')==='14,5,4,3,2')straight=5;}
     if(flush&&straight)return [8,straight];
     if(groups[0][1]===4)return [7,groups[0][0],groups[1][0]];
@@ -21,13 +21,28 @@
   }
   function evaluate(cards){
     if(cards.length<5)throw new Error('比牌至少需要五张牌');let best=null,bestCards;
-    function choose(start,pick){if(pick.length===5){let value=five(pick);if(!best||compare(value,best)>0){best=value;bestCards=pick.slice();}return;}for(let i=start;i<=cards.length-(5-pick.length);i++)choose(i+1,pick.concat(cards[i]));}
-    const wild=cards.findIndex(c=>c.r===0);
-    if(wild<0)choose(0,[]);else{
-      const original=cards[wild],used=new Set(cards.filter(c=>c.r).map(c=>c.id));
-      cards=cards.slice();for(const replacement of deck().slice(0,52)){if(used.has(replacement.id))continue;cards[wild]=replacement;choose(0,[]);}cards[wild]=original;
+    const used=new Set(cards.filter(c=>c.r).map(c=>c.id));
+    const available=deck().slice(0,52).filter(c=>!used.has(c.id));
+    const byRank=Array.from({length:15},(_,r)=>available.filter(c=>c.r===r));
+    function consider(pick,flush=true){const value=five(pick,flush);if(!best||compare(value,best)>0){best=value;bestCards=pick.slice();}}
+    function rankFill(natural,count,from=2,extra=[]){if(!count){consider(natural.concat(extra),false);return;}
+      for(let r=from;r<=14;r++){const chosen=extra.filter(c=>c.r===r).length;if(byRank[r].length>chosen)rankFill(natural,count-1,r,extra.concat(byRank[r][chosen]));}
     }
-    return {score:best,name:names[best[0]],cards:bestCards};
+    function score(pick){const natural=pick.filter(c=>c.r),wild=5-natural.length;if(!wild){consider(pick);return;}
+      rankFill(natural,wild);
+      // Flushes need suit-aware replacements; other categories only need ranks.
+      for(let suit=0;suit<4;suit++){if(natural.some(c=>c.s!==suit))continue;
+        const options=available.filter(c=>c.s===suit).sort((a,b)=>b.r-a.r);
+        if(options.length>=wild)consider(natural.concat(options.slice(0,wild)));
+        for(let high=14;high>=5;high--){const ranks=high===5?[14,5,4,3,2]:Array.from({length:5},(_,i)=>high-i);
+          if(natural.some(c=>!ranks.includes(c.r)))continue;
+          const missing=ranks.filter(r=>!natural.some(c=>c.r===r));
+          const fill=missing.map(r=>options.find(c=>c.r===r));if(fill.every(Boolean))consider(natural.concat(fill));
+        }
+      }
+    }
+    function choose(start,pick){if(pick.length===5){score(pick);return;}for(let i=start;i<=cards.length-(5-pick.length);i++)choose(i+1,pick.concat(cards[i]));}
+    choose(0,[]);return {score:best,name:names[best[0]],cards:bestCards};
   }
   // Award each contribution layer separately; folded players fund pots but cannot win.
   function settle(players,board,dealer){
@@ -54,7 +69,7 @@
     {city:'同济药学院',name:'药研学者',skill:'筛选',description:'多摸一张，从三张手牌中保留两张。',type:'choose',icon:'研',color:'#b4a6ed'}
   ];
   class Game{
-    constructor(rng=Math.random){this.rng=rng;this.logs=[];this.handNo=0;this.dealer=Math.floor(rng()*6);this.players=shuffle(roles,rng).map((role,i)=>({name:i?'牌友 '+i:'你',role,chips:rules.initialChips,buyIn:rules.initialChips,rebuys:0,uses:3,hand:[],folded:false,total:0,bet:0}));this.stage='lobby';this.actor=-1;}
+    constructor(rng=Math.random){this.rng=rng;this.logs=[];this.handNo=0;this.dealer=Math.floor(rng()*6);this.players=shuffle(roles,rng).map((role,i)=>({name:i?'牌友 '+i:'你',role,chips:rules.initialChips,buyIn:rules.initialChips,rebuys:0,uses:1,hand:[],folded:false,total:0,bet:0}));this.stage='lobby';this.actor=-1;}
     net(i){const p=this.players[i];return p.chips-p.buyIn;}
     log(text){this.logs.push(text);if(this.logs.length>70)this.logs.shift();}
     live(){return this.players.map((p,i)=>!p.folded?i:-1).filter(i=>i>=0);}
@@ -66,7 +81,7 @@
       if(this.handNo)this.dealer=this.next(this.dealer,p=>p.chips>0);else if(!this.players[this.dealer].chips)this.dealer=this.next(this.dealer,p=>p.chips>0);
       this.handNo++;this.smallBlind=[10,20,40,80][Math.floor((this.handNo-1)/3)];this.bigBlind=this.smallBlind*2;
       this.deck=shuffle(deck(),this.rng);this.board=this.deck.splice(0,5);this.visible=0;this.result=null;this.intel=[];this.skillPlan=null;this.skillsResolved=false;this.reveal=false;
-      this.players.forEach(p=>{p.bet=0;p.total=0;p.folded=p.chips===0;p.hand=p.folded?[]:this.deck.splice(0,2);p.used=false;p.intel=null;p.intelList=[];});
+      this.players.forEach(p=>{p.bet=0;p.total=0;p.folded=p.chips===0;p.hand=p.folded?[]:this.deck.splice(0,2);p.uses=1;p.used=false;p.intel=null;p.intelList=[];});
       const headsUp=this.live().length===2;this.sb=headsUp?this.dealer:this.next(this.dealer,p=>!p.folded);this.bb=this.next(this.sb,p=>!p.folded);
       this.pay(this.sb,this.smallBlind);this.pay(this.bb,this.bigBlind);this.stage='skill';this.actor=0;
       this.log('第 '+this.handNo+' 局 · 盲注 '+this.smallBlind+'/'+this.bigBlind+' · 庄家 '+this.players[this.dealer].name);

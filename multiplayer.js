@@ -4,7 +4,7 @@ const betting=new Set(['preflop','flop','river']);
 const random=()=>crypto.randomInt(0,0x100000000)/0x100000000;
 function cleanName(value){if(typeof value!=='string')throw new Error('请输入昵称');const name=value.replace(/[\x00-\x1f<>"'&`]/g,'').trim().slice(0,12);if(!name)throw new Error('请输入昵称');return name;}
 class Rooms{
-  constructor(options={}){this.rooms=new Map();this.skillMs=options.skillMs??30000;this.actionMs=options.actionMs??30000;this.botMs=options.botMs??900;this.roomTtl=options.roomTtl??2*60*60*1000;this.cleanup=setInterval(()=>this.sweep(),60000);this.cleanup.unref();}
+  constructor(options={}){this.rooms=new Map();this.skillMs=options.skillMs??30000;this.actionMs=options.actionMs??30000;this.botMs=options.botMs??900;this.roomTtl=options.roomTtl??2*60*60*1000;this.externalTimers=options.externalTimers??false;if(!this.externalTimers){this.cleanup=setInterval(()=>this.sweep(),60000);this.cleanup.unref();}}
   send(ws,msg){if(ws?.readyState===1)ws.send(JSON.stringify(msg));}
   key(room){const g=room.game;return `${room.match}:${g.handNo}:${g.stage}:${g.actor}:${g.logs.length}`;}
   requireHost(room,index){if(index!==room.host)throw new Error('只有房主可以执行此操作');}
@@ -46,9 +46,10 @@ class Rooms{
   resolveSkills(room){room.members.forEach((m,i)=>{const p=room.game.players[i];if(m.bot&&!room.plans[i]&&p.uses&&random()<.45)room.plans[i]={index:p.hand[0].r<p.hand[1].r?0:1,target:room.game.next(i,p=>!p.folded),discard:2};});room.game.resolveSkills(room.plans);}
   schedule(room){const key=this.key(room);if(key===room.timerKey)return;clearTimeout(room.timer);room.timerKey=key;const g=room.game;let delay=0;
     if(g.stage==='skill')delay=this.skillMs;else if(betting.has(g.stage))delay=room.members[g.actor]?.bot?this.botMs:this.actionMs;
-    room.deadline=delay?Date.now()+delay:0;if(!delay)return;
-    room.timer=setTimeout(()=>{if(!this.rooms.has(room.code))return;try{if(g.stage==='skill')this.resolveSkills(room);else if(betting.has(g.stage)){if(room.members[g.actor]?.bot)g.botAction();else g.action(g.actor,g.toCall(g.actor)?'fold':'call');}this.schedule(room);this.broadcast(room);}catch(e){console.error('Room timer error:',e.message);}},delay);room.timer.unref();
+    room.deadline=delay?Date.now()+delay:0;if(!delay||this.externalTimers)return;
+    room.timer=setTimeout(()=>this.advance(room),delay);room.timer.unref();
   }
+  advance(room){if(!this.rooms.has(room.code))return;const g=room.game;if(g.stage==='skill')this.resolveSkills(room);else if(betting.has(g.stage)){if(room.members[g.actor]?.bot)g.botAction();else g.action(g.actor,g.toCall(g.actor)?'fold':'call');}this.schedule(room);this.broadcast(room);}
   view(room,index){const g=room.game,ended=['result','finished'].includes(g.stage);return {type:'state',code:room.code,match:room.match,you:index,host:room.host,city:room.city,actionKey:this.key(room),deadline:room.deadline,serverNow:Date.now(),stage:g.stage,handNo:g.handNo,dealer:g.dealer,sb:g.sb??-1,bb:g.bb??-1,actor:g.stage==='skill'?-1:g.actor,smallBlind:g.smallBlind||10,bigBlind:g.bigBlind||20,currentBet:g.currentBet||0,minRaise:g.minRaise||20,visible:g.visible||0,reveal:g.reveal||false,board:g.board?.slice(0,g.visible)||[],logs:g.logs,skillSubmitted:room.submitted.has(index),skillPlan:!!room.plans[index],chooseCards:room.plans[index]?.previewCard&&!room.submitted.has(index)?g.players[index].hand.concat(room.plans[index].previewCard):null,intel:g.players[index].intelList||[],canRaise:betting.has(g.stage)&&g.actor===index?g.canRaise(index):false,
       players:g.players.map((p,i)=>{const member=room.members[i],show=i===index||(ended&&g.reveal&&!p.folded);return {name:member?.name||'空位',role:p.role,chips:p.chips,buyIn:p.buyIn,rebuys:p.rebuys,uses:p.uses,folded:p.folded,bet:p.bet,total:p.total,used:p.used,hand:show?p.hand:p.hand.map(()=>null),occupied:!!member,bot:member?.bot||false,online:member?.bot||member?.ws?.readyState===1,ready:member?.ready||false};}),
       result:g.result?{awards:g.result.awards,pots:g.result.pots,ranks:g.result.ranks.map(rank=>rank?{name:rank.name}:null)}:null};}

@@ -20,7 +20,7 @@ async function main(){const app=createApp({skillMs:30000,actionMs:30000,botMs:5}
     error=await peers[chooser].request('pass',{},m=>m.type==='error');assert.match(error.message,/必须使用筛选/);
     for(let i=0;i<6;i++){const t=room.game.players[i].role.type;await peers[i].request('skill',{index:0,discard:0,target:t==='spy'?swap:undefined},m=>m.type==='state'&&(m.skillSubmitted||m.stage==='preflop'));}
     assert.equal(room.game.stage,'preflop');assert(room.deadline-Date.now()>29000);assert.equal(room.game.players[chooser].hand[1].id,third);assert(room.game.players[swap].hand.some(c=>c.id===app.rooms.view(room,spy).intel[0].card.id));
-    for(let i=0;i<6;i++){const v=app.rooms.view(room,i);assert.equal(v.players[i].uses,2);assert.equal(v.intel.length,['flop','river','spy'].includes(room.game.players[i].role.type)?1:0);assert(!v.players.some(p=>'intelList'in p||'intel'in p));}
+    for(let i=0;i<6;i++){const v=app.rooms.view(room,i);assert.equal(v.players[i].uses,0);assert.equal(v.intel.length,['flop','river','spy'].includes(room.game.players[i].role.type)?1:0);assert(!v.players.some(p=>'intelList'in p||'intel'in p));}
     for(const p of peers.slice(0,6))if(p.state.actionKey!==app.rooms.key(room))await p.next(m=>m.type==='state'&&m.actionKey===app.rooms.key(room));
     const actor=room.game.actor,other=(actor+1)%6,before=room.game.players[other].chips;error=await peers[other].request('action',{action:'raise',target:999999},m=>m.type==='error');assert.match(error.message,/轮到/);assert.equal(room.game.players[other].chips,before);
     const key=peers[actor].state.actionKey;await peers[actor].request('action',{action:'call'});error=await peers[actor].request('action',{actionKey:key,action:'call'},m=>m.type==='error');assert.match(error.message,/轮次/);
@@ -28,7 +28,7 @@ async function main(){const app=createApp({skillMs:30000,actionMs:30000,botMs:5}
     assert.equal(room.game.players.reduce((s,p)=>s+p.chips,0),6000);for(let i=0;i<6;i++){const v=app.rooms.view(room,i);assert.equal(v.board.length,5);assert(v.players.every(p=>p.hand.every(Boolean)));assert(v.result.ranks.every(r=>r===null||Object.keys(r).join(',')==='name'));}
     error=await peers[1].request('next',{},m=>m.type==='error');assert.match(error.message,/房主/);
     const token=peers[2].joined.token;peers[2].ws.close();await new Promise(r=>peers[2].ws.once('close',r));const resume=await peer(url);peers.push(resume);await resume.request('join',{code,token,name:'不应改名'});assert.equal(resume.joined.index,2);assert.equal(resume.state.players[2].name,'玩家2');
-    room.game.players[3].chips=0;const oldBuyIn=room.game.players[3].buyIn;await host.request('next',{},m=>m.type==='state'&&m.handNo===2);assert.equal(room.game.handNo,2);assert.equal(room.game.players[3].buyIn,oldBuyIn+1000);assert.equal(room.game.players[3].hand.length,2);assert.equal(room.game.players[3].uses,2);
+    room.game.players[3].chips=0;const oldBuyIn=room.game.players[3].buyIn;await host.request('next',{},m=>m.type==='state'&&m.handNo===2);assert.equal(room.game.handNo,2);assert.equal(room.game.players[3].buyIn,oldBuyIn+1000);assert.equal(room.game.players[3].hand.length,2);assert.equal(room.game.players[3].uses,1);
     console.log('✓ 六个真实 WebSocket 客户端：建房、加入、准备、六技能、三轮下注、结算、重连、补筹码、权限与私牌隔离');
   }finally{for(const p of peers)p.ws.terminate();await app.close();}
   const timed=createApp({skillMs:40,actionMs:40,botMs:5});await new Promise(r=>timed.server.listen(0,'127.0.0.1',r));let p;

@@ -7,12 +7,16 @@
   },
   "scripts": {
     "start": "node server.js",
-    "test": "node tests.js && node network-tests.js && node client-tests.js"
+    "test": "node tests.js && node network-tests.js && node client-tests.js",
+    "build:cloudflare": "node cloudflare/build-assets.cjs",
+    "dev:cloudflare": "npm run build:cloudflare && wrangler dev",
+    "deploy:cloudflare": "npm run build:cloudflare && wrangler deploy"
   },
   "dependencies": {
     "ws": "^8.18.3"
   },
   "devDependencies": {
-    "linkedom": "^0.18.13"
+    "linkedom": "^0.18.13",
+    "wrangler": "^4.149.0"
   }
 }

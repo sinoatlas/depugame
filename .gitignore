@@ -6,3 +6,6 @@ node_modules/
 *.log
 preview*.png
 deploy.zip
+
+.wrangler/
+public/
